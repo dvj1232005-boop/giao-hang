@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>App Giao Hàng</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-3xl font-bold mb-4">🚚 Quản lý giao hàng</h1>
+
+<!-- LOGIN -->
+<div id="loginBox" class="bg-white p-4 rounded shadow mb-4">
+<input id="email" placeholder="Email" class="border p-2 w-full mb-2">
+<input id="pass" type="password" placeholder="Password" class="border p-2 w-full mb-2">
+
+<button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">
+Đăng nhập
+</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+<p class="mb-2">👤 <span id="user"></span></p>
+
+<!-- DASHBOARD -->
+<div class="grid grid-cols-3 gap-4 mb-4">
+<div class="bg-white p-3 rounded shadow">📦 Đơn: <b id="tongDon">0</b></div>
+<div class="bg-white p-3 rounded shadow">💰 <b id="tongTien">0</b></div>
+<div class="bg-white p-3 rounded shadow">📍 <b id="tongKm">0</b> km</div>
+</div>
+
+<!-- FORM -->
+<div class="bg-white p-4 rounded shadow mb-4">
+<input id="km" type="number" placeholder="Km" class="border p-2 w-full mb-2">
+<input id="gia" type="number" placeholder="Giá đơn (k)" class="border p-2 w-full mb-2">
+<input id="diachi" placeholder="Địa chỉ" class="border p-2 w-full mb-2">
+
+<button onclick="add()" class="bg-green-500 text-white px-4 py-2 rounded w-full">
+➕ Thêm đơn đã giao
+</button>
+</div>
+
+<!-- SEARCH -->
+<input id="search" placeholder="🔍 Tìm địa chỉ..." class="border p-2 w-full mb-3" oninput="load()">
+
+<!-- LIST -->
+<div id="list"></div>
+
+</div>
+
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyD94z3pGIyzQqIVI0Uu4msc0G2IU8CvvbU",
+authDomain: "giao-hang-35556.firebaseapp.com",
+databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "giao-hang-35556",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let userEmail = "";
+let role = "shipper";
+
+// LOGIN
+function login(){
+const email = document.getElementById("email").value;
+const pass = document.getElementById("pass").value;
+
+firebase.auth().signInWithEmailAndPassword(email, pass)
+.then(()=>{
+userEmail = email;
+role = email.includes("admin") ? "admin" : "shipper";
+
+document.getElementById("user").innerText = email;
+document.getElementById("loginBox").classList.add("hidden");
+document.getElementById("app").classList.remove("hidden");
+
+load();
+})
+.catch(()=>alert("Sai tài khoản"));
+}
+
+// TÍNH TIỀN
+function calc(km, gia){
+if(gia >= 300) return 0;
+if(km <= 1) return 5;
+return (km-1)*5;
+}
+
+// ADD
+function add(){
+const km = Number(document.getElementById("km").value);
+const gia = Number(document.getElementById("gia").value);
+const diachi = document.getElementById("diachi").value;
+
+db.ref("orders").push({
+user:userEmail,
+km,
+gia,
+diachi,
+tien:calc(km,gia),
+time:new Date().toLocaleString()
+});
+}
+
+// LOAD
+function load(){
+db.ref("orders").on("value",snap=>{
+const data = snap.val();
+let html="";
+let tongDon=0,tongTien=0,tongKm=0;
+
+const search = document.getElementById("search").value.toLowerCase();
+
+for(let id in data){
+let d = data[id];
+
+if(role!="admin" && d.user!=userEmail) continue;
+if(search && !d.diachi.toLowerCase().includes(search)) continue;
+
+tongDon++;
+tongTien+=d.tien;
+tongKm+=d.km;
+
+html+=`
+<div class="bg-white p-3 mb-2 rounded shadow">
+<b>${d.user}</b> - ${d.km}km - ${d.gia}k  
+<br>💰 ${d.tien}k  
+<br>📍 ${d.diachi}
+<br>🕒 ${d.time}
+
+<div class="mt-2">
+<button onclick="del('${id}')" class="bg-red-500 text-white px-2">🗑 Xóa</button>
+</div>
+</div>
+`;
+}
+
+document.getElementById("list").innerHTML = html;
+document.getElementById("tongDon").innerText = tongDon;
+document.getElementById("tongTien").innerText = tongTien;
+document.getElementById("tongKm").innerText = tongKm;
+});
+}
+
+// DELETE
+function del(id){
+db.ref("orders/"+id).remove();
+}
+</script>
+
+</body>
+</html>
