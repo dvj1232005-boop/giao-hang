@@ -2,158 +2,211 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>App Giao Hàng</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<title>Nhật ký giao hàng</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
+
+<script>
+tailwind.config = { darkMode: 'class' }
+</script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white text-base">
 
-<h1 class="text-3xl font-bold mb-4">🚚 Quản lý giao hàng</h1>
+<div class="max-w-md mx-auto">
 
-<!-- NHẬP TÊN -->
-<div id="loginBox" class="bg-white p-4 rounded shadow mb-4">
-<input id="name" placeholder="Nhập tên của bạn..." class="border p-2 w-full mb-2">
-
-<button onclick="start()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">
-Bắt đầu
-</button>
+<!-- HEADER -->
+<div class="bg-white dark:bg-gray-900 p-4 shadow flex justify-between items-center sticky top-0 z-10">
+<div>
+<h1 class="text-xl font-bold">🚚 Giao hàng</h1>
+<p class="text-sm text-gray-500 dark:text-gray-400">👤 <span id="user"></span></p>
 </div>
 
-<!-- APP -->
-<div id="app" class="hidden">
-
-<p class="mb-2">👤 <span id="user"></span></p>
+<div class="flex gap-2">
+<button onclick="toggleDark()" class="px-2">🌙</button>
+<button onclick="openManager()" class="px-2">📊</button>
+</div>
+</div>
 
 <!-- DASHBOARD -->
-<div class="grid grid-cols-3 gap-4 mb-4">
-<div class="bg-white p-3 rounded shadow">📦 Đơn: <b id="tongDon">0</b></div>
-<div class="bg-white p-3 rounded shadow">💰 <b id="tongTien">0</b></div>
-<div class="bg-white p-3 rounded shadow">📍 <b id="tongKm">0</b> km</div>
+<div class="grid grid-cols-3 gap-2 p-3">
+<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
+<p class="text-xs">Đơn</p>
+<p id="tongDon">0</p>
 </div>
 
-<!-- FORM -->
-<div class="bg-white p-4 rounded shadow mb-4">
-<input id="km" type="number" placeholder="Km" class="border p-2 w-full mb-2">
-<input id="gia" type="number" placeholder="Giá đơn (k)" class="border p-2 w-full mb-2">
-<input id="diachi" placeholder="Địa chỉ" class="border p-2 w-full mb-2">
+<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
+<p class="text-xs">Tiền</p>
+<p id="tongTien">0</p>
+</div>
 
-<button onclick="add()" class="bg-green-500 text-white px-4 py-2 rounded w-full">
-➕ Thêm đơn đã giao
+<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
+<p class="text-xs">Km</p>
+<p id="tongKm">0</p>
+</div>
+</div>
+
+<!-- LIST -->
+<div id="list" class="p-3 space-y-2 pb-32"></div>
+
+<!-- FORM -->
+<div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 p-3 border-t">
+
+<div class="flex gap-2 mb-2">
+<input id="km" type="number" placeholder="Km"
+class="flex-1 border p-2 rounded text-base bg-white dark:bg-gray-700">
+
+<input id="gia" type="number" placeholder="Giá"
+class="flex-1 border p-2 rounded text-base bg-white dark:bg-gray-700">
+</div>
+
+<input id="diachi" placeholder="Địa chỉ"
+class="border p-2 rounded w-full mb-2 text-base bg-white dark:bg-gray-700">
+
+<button onclick="add()" class="bg-green-500 text-white w-full py-3 rounded">
+➕ Thêm đơn
+</button>
+
+</div>
+
+<!-- PIN -->
+<div id="pinBox" class="hidden p-4 text-center">
+<input id="pinInput" type="password" placeholder="Nhập PIN"
+class="border p-2 w-full mb-2">
+<button onclick="checkPin()" class="bg-purple-500 text-white w-full py-2">
+Xác nhận
 </button>
 </div>
 
-<!-- SEARCH -->
-<input id="search" placeholder="🔍 Tìm địa chỉ..." class="border p-2 w-full mb-3" oninput="load()">
-
-<!-- LIST -->
-<div id="list"></div>
+<!-- MANAGER -->
+<div id="manager" class="hidden p-3"></div>
 
 </div>
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyD94z3pGIyzQqIVI0Uu4msc0G2IU8CvvbU",
-databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app",
-projectId: "giao-hang-35556",
+apiKey: "AIzaSy...",
+databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let userName = "";
-let role = "shipper";
+// USER
+let user = localStorage.getItem("user") || prompt("Nhập tên:");
+localStorage.setItem("user", user);
+document.getElementById("user").innerText = user;
 
-// BẮT ĐẦU
-function start(){
-userName = document.getElementById("name").value.trim();
-
-if(!userName){
-alert("Nhập tên đi");
-return;
-}
-
-// phân quyền đơn giản
-if(userName.toLowerCase() == "admin"){
-role = "admin";
-}
-
-document.getElementById("user").innerText = userName;
-document.getElementById("loginBox").classList.add("hidden");
-document.getElementById("app").classList.remove("hidden");
-
-load();
+// DARK MODE
+function toggleDark(){
+document.documentElement.classList.toggle("dark");
 }
 
 // TÍNH TIỀN
 function calc(km, gia){
+km = Math.round(km);
 if(gia >= 300) return 0;
 if(km <= 1) return 5;
-return (km-1)*5;
+return (km - 1) * 5;
 }
 
 // ADD
 function add(){
-const km = Number(document.getElementById("km").value);
-const gia = Number(document.getElementById("gia").value);
-const diachi = document.getElementById("diachi").value;
+let km = Number(document.getElementById("km").value);
+let gia = Number(document.getElementById("gia").value);
+let diachi = document.getElementById("diachi").value;
 
 db.ref("orders").push({
-user:userName,
-km,
+user,
+km: Math.round(km),
 gia,
 diachi,
-tien:calc(km,gia),
-time:new Date().toLocaleString()
+tien: calc(km, gia),
+time: new Date().toLocaleString()
 });
+
+load();
 }
 
-// LOAD
+// LOAD USER
 function load(){
-db.ref("orders").on("value",snap=>{
-const data = snap.val();
-let html="";
-let tongDon=0,tongTien=0,tongKm=0;
-
-const search = document.getElementById("search").value.toLowerCase();
+db.ref("orders").once("value", snap=>{
+let data = snap.val();
+let html="", d=0,t=0,k=0;
 
 for(let id in data){
-let d = data[id];
+let o=data[id];
+if(o.user!=user) continue;
 
-if(role!="admin" && d.user!=userName) continue;
-if(search && !d.diachi.toLowerCase().includes(search)) continue;
-
-tongDon++;
-tongTien+=d.tien;
-tongKm+=d.km;
+d++; t+=o.tien; k+=o.km;
 
 html+=`
-<div class="bg-white p-3 mb-2 rounded shadow">
-<b>${d.user}</b> - ${d.km}km - ${d.gia}k  
-<br>💰 ${d.tien}k  
-<br>📍 ${d.diachi}
-<br>🕒 ${d.time}
-
-<div class="mt-2">
-<button onclick="del('${id}')" class="bg-red-500 text-white px-2">🗑 Xóa</button>
-</div>
-</div>
-`;
+<div class="bg-white dark:bg-gray-800 p-3 rounded shadow">
+${o.km}km - ${o.gia}k - 💰${o.tien}k
+</div>`;
 }
 
-document.getElementById("list").innerHTML = html;
-document.getElementById("tongDon").innerText = tongDon;
-document.getElementById("tongTien").innerText = tongTien;
-document.getElementById("tongKm").innerText = tongKm;
+document.getElementById("list").innerHTML=html;
+document.getElementById("tongDon").innerText=d;
+document.getElementById("tongTien").innerText=t;
+document.getElementById("tongKm").innerText=k;
 });
 }
 
-// DELETE
-function del(id){
-db.ref("orders/"+id).remove();
+// MANAGER
+function openManager(){
+document.getElementById("pinBox").classList.remove("hidden");
 }
+
+function checkPin(){
+if(document.getElementById("pinInput").value!="2005"){
+alert("Sai PIN"); return;
+}
+document.getElementById("manager").classList.remove("hidden");
+
+db.ref("orders").once("value",snap=>{
+let data=snap.val(), map={}, html="";
+
+for(let id in data){
+let o=data[id];
+if(!map[o.user]) map[o.user]={km:0,tien:0,don:0,list:[]};
+
+map[o.user].km+=o.km;
+map[o.user].tien+=o.tien;
+map[o.user].don++;
+map[o.user].list.push(o);
+}
+
+for(let u in map){
+let m=map[u];
+
+html+=`
+<div class="bg-white dark:bg-gray-800 p-3 mb-2 rounded">
+<b>${u}</b> - 📦${m.don} - 📍${m.km}km - 💰${m.tien}k
+<button onclick="toggle('${u}')" class="float-right">⋮</button>
+
+<div id="${u}" class="hidden">
+${m.list.map(i=>`<div>${i.km}km - ${i.tien}k</div>`).join("")}
+</div>
+</div>`;
+}
+
+document.getElementById("manager").innerHTML=html;
+});
+}
+
+function toggle(u){
+let el=document.getElementById(u);
+el.classList.toggle("hidden");
+}
+
+// INIT
+load();
 </script>
 
 </body>
