@@ -4,32 +4,57 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-<title>Nhật ký giao hàng</title>
+<title>Giao hàng Pro</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
-
 <script>
 tailwind.config = { darkMode: 'class' }
 </script>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<style>
+body { font-family: -apple-system, sans-serif; }
+</style>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white text-base">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
 
 <div class="max-w-md mx-auto">
 
+<!-- ===== LOBBY ===== -->
+<div id="lobby" class="p-6 text-center">
+
+<h1 class="text-2xl font-bold mb-6">🚚 Giao hàng</h1>
+
+<input id="name" placeholder="Nhập tên shipper"
+class="w-full p-3 rounded border mb-3 text-base bg-white dark:bg-gray-800">
+
+<button onclick="start()" 
+class="w-full bg-blue-500 text-white py-3 rounded mb-2">
+Bắt đầu
+</button>
+
+<button onclick="openManager()" 
+class="w-full bg-purple-500 text-white py-3 rounded">
+📊 Quản lý
+</button>
+
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hidden">
+
 <!-- HEADER -->
-<div class="bg-white dark:bg-gray-900 p-4 shadow flex justify-between items-center sticky top-0 z-10">
+<div class="p-4 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 shadow">
 <div>
-<h1 class="text-xl font-bold">🚚 Giao hàng</h1>
-<p class="text-sm text-gray-500 dark:text-gray-400">👤 <span id="user"></span></p>
+<b id="user"></b>
 </div>
 
 <div class="flex gap-2">
-<button onclick="toggleDark()" class="px-2">🌙</button>
-<button onclick="openManager()" class="px-2">📊</button>
+<button onclick="toggleDark()">🌙</button>
+<button onclick="back()">🏠</button>
 </div>
 </div>
 
@@ -37,17 +62,17 @@ tailwind.config = { darkMode: 'class' }
 <div class="grid grid-cols-3 gap-2 p-3">
 <div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
 <p class="text-xs">Đơn</p>
-<p id="tongDon">0</p>
+<b id="d">0</b>
 </div>
 
 <div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
 <p class="text-xs">Tiền</p>
-<p id="tongTien">0</p>
+<b id="t">0</b>
 </div>
 
 <div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
 <p class="text-xs">Km</p>
-<p id="tongKm">0</p>
+<b id="k">0</b>
 </div>
 </div>
 
@@ -55,36 +80,45 @@ tailwind.config = { darkMode: 'class' }
 <div id="list" class="p-3 space-y-2 pb-32"></div>
 
 <!-- FORM -->
-<div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 p-3 border-t">
+<div class="fixed bottom-0 left-0 right-0 p-3 bg-white dark:bg-gray-800 border-t">
 
 <div class="flex gap-2 mb-2">
-<input id="km" type="number" placeholder="Km"
-class="flex-1 border p-2 rounded text-base bg-white dark:bg-gray-700">
+<input id="km" placeholder="Km" type="number"
+class="flex-1 p-2 border rounded text-base bg-white dark:bg-gray-700">
 
-<input id="gia" type="number" placeholder="Giá"
-class="flex-1 border p-2 rounded text-base bg-white dark:bg-gray-700">
+<input id="gia" placeholder="Giá" type="number"
+class="flex-1 p-2 border rounded text-base bg-white dark:bg-gray-700">
 </div>
 
-<input id="diachi" placeholder="Địa chỉ"
-class="border p-2 rounded w-full mb-2 text-base bg-white dark:bg-gray-700">
+<input id="dc" placeholder="Địa chỉ"
+class="w-full p-2 border rounded mb-2 text-base bg-white dark:bg-gray-700">
 
-<button onclick="add()" class="bg-green-500 text-white w-full py-3 rounded">
-➕ Thêm đơn
+<button onclick="add()" 
+class="w-full bg-green-500 text-white py-3 rounded">
+➕ Thêm
 </button>
 
 </div>
 
-<!-- PIN -->
-<div id="pinBox" class="hidden p-4 text-center">
-<input id="pinInput" type="password" placeholder="Nhập PIN"
-class="border p-2 w-full mb-2">
-<button onclick="checkPin()" class="bg-purple-500 text-white w-full py-2">
+</div>
+
+<!-- ===== PIN ===== -->
+<div id="pin" class="hidden p-6 text-center">
+
+<h2 class="mb-3 font-bold">🔐 Nhập PIN</h2>
+
+<input id="p" type="password"
+class="w-full p-3 border rounded mb-2 text-center">
+
+<button onclick="checkPin()" 
+class="bg-purple-500 text-white w-full py-3 rounded">
 Xác nhận
 </button>
+
 </div>
 
-<!-- MANAGER -->
-<div id="manager" class="hidden p-3"></div>
+<!-- ===== MANAGER ===== -->
+<div id="manager" class="hidden p-4"></div>
 
 </div>
 
@@ -97,47 +131,61 @@ databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatab
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// USER
-let user = localStorage.getItem("user") || prompt("Nhập tên:");
-localStorage.setItem("user", user);
-document.getElementById("user").innerText = user;
+let user="";
 
-// DARK MODE
-function toggleDark(){
-document.documentElement.classList.toggle("dark");
-}
+// ===== START =====
+function start(){
+user = document.getElementById("name").value.trim();
+if(!user) return alert("Nhập tên");
 
-// TÍNH TIỀN
-function calc(km, gia){
-km = Math.round(km);
-if(gia >= 300) return 0;
-if(km <= 1) return 5;
-return (km - 1) * 5;
-}
+document.getElementById("lobby").classList.add("hidden");
+document.getElementById("app").classList.remove("hidden");
 
-// ADD
-function add(){
-let km = Number(document.getElementById("km").value);
-let gia = Number(document.getElementById("gia").value);
-let diachi = document.getElementById("diachi").value;
-
-db.ref("orders").push({
-user,
-km: Math.round(km),
-gia,
-diachi,
-tien: calc(km, gia),
-time: new Date().toLocaleString()
-});
+document.getElementById("user").innerText=user;
 
 load();
 }
 
-// LOAD USER
+// ===== BACK =====
+function back(){
+location.reload();
+}
+
+// ===== DARK =====
+function toggleDark(){
+document.documentElement.classList.toggle("dark");
+}
+
+// ===== TÍNH =====
+function calc(km,gia){
+km=Math.round(km);
+if(gia>=300) return 0;
+if(km<=1) return 5;
+return (km-1)*5;
+}
+
+// ===== ADD =====
+function add(){
+let km=Number(kmInput.value);
+let gia=Number(giaInput.value);
+let dc=dcInput.value;
+
+db.ref("orders").push({
+user, km:Math.round(km), gia, dc,
+tien:calc(km,gia),
+time:Date.now()
+});
+
+kmInput.value="";
+giaInput.value="";
+dcInput.value="";
+}
+
+// ===== LOAD =====
 function load(){
-db.ref("orders").once("value", snap=>{
-let data = snap.val();
-let html="", d=0,t=0,k=0;
+db.ref("orders").on("value",snap=>{
+let data=snap.val()||{};
+let html="",d=0,t=0,k=0;
 
 for(let id in data){
 let o=data[id];
@@ -151,26 +199,27 @@ ${o.km}km - ${o.gia}k - 💰${o.tien}k
 </div>`;
 }
 
-document.getElementById("list").innerHTML=html;
-document.getElementById("tongDon").innerText=d;
-document.getElementById("tongTien").innerText=t;
-document.getElementById("tongKm").innerText=k;
+list.innerHTML=html;
+dEl.innerText=d;
+tEl.innerText=t;
+kEl.innerText=k;
 });
 }
 
-// MANAGER
+// ===== MANAGER =====
 function openManager(){
-document.getElementById("pinBox").classList.remove("hidden");
+lobby.classList.add("hidden");
+pin.classList.remove("hidden");
 }
 
 function checkPin(){
-if(document.getElementById("pinInput").value!="2005"){
-alert("Sai PIN"); return;
-}
-document.getElementById("manager").classList.remove("hidden");
+if(p.value!="2005") return alert("Sai PIN");
+
+pin.classList.add("hidden");
+manager.classList.remove("hidden");
 
 db.ref("orders").once("value",snap=>{
-let data=snap.val(), map={}, html="";
+let data=snap.val()||{}, map={}, html="";
 
 for(let id in data){
 let o=data[id];
@@ -186,27 +235,25 @@ for(let u in map){
 let m=map[u];
 
 html+=`
-<div class="bg-white dark:bg-gray-800 p-3 mb-2 rounded">
-<b>${u}</b> - 📦${m.don} - 📍${m.km}km - 💰${m.tien}k
-<button onclick="toggle('${u}')" class="float-right">⋮</button>
+<div class="bg-white dark:bg-gray-800 p-3 mb-2 rounded shadow">
+<b>${u}</b> - 📦${m.don} | 📍${m.km}km | 💰${m.tien}k
 
-<div id="${u}" class="hidden">
+<button onclick="toggle('${u}')" class="float-right text-xl">⋮</button>
+
+<div id="${u}" class="hidden mt-2 text-sm">
 ${m.list.map(i=>`<div>${i.km}km - ${i.tien}k</div>`).join("")}
 </div>
+
 </div>`;
 }
 
-document.getElementById("manager").innerHTML=html;
+manager.innerHTML=html;
 });
 }
 
 function toggle(u){
-let el=document.getElementById(u);
-el.classList.toggle("hidden");
+document.getElementById(u).classList.toggle("hidden");
 }
-
-// INIT
-load();
 </script>
 
 </body>
