@@ -224,11 +224,19 @@
 </div>
 
 <script>
-// --- Config Firebase ---
+// ==========================================
+// ⚠️ QUAN TRỌNG: THAY BẰNG THÔNG TIN FIREBASE CỦA BẠN ⚠️
+// ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSy...", 
-  databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app"
+  apiKey: "MÃ_API_CỦA_BẠN_ĐIỀN_VÀO_ĐÂY", 
+  authDomain: "TÊN_PROJECT.firebaseapp.com", // Ví dụ: giao-hang-35556.firebaseapp.com
+  databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "TÊN_PROJECT", // Ví dụ: giao-hang-35556
+  storageBucket: "TÊN_PROJECT.appspot.com",
+  messagingSenderId: "SỐ_SENDER_ID",
+  appId: "MÃ_APP_ID"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -308,7 +316,6 @@ const sheet = document.getElementById('addSheet');
 function openAddSheet(e) {
   if(e) createRipple(e);
   overlay.classList.remove('hidden');
-  // trigger reflow
   void overlay.offsetWidth;
   overlay.classList.remove('opacity-0');
   sheet.classList.remove('translate-y-full');
@@ -350,23 +357,28 @@ function add(e){
 
   let tien = calc(km, gia);
 
+  // Đẩy lên Firebase và xử lý Lỗi/Thành công
   db.ref("orders").push({
-    user,
+    user: user,
     km: Math.round(km),
-    gia,
-    dc,
+    gia: gia,
+    dc: dc,
     tien: tien,
     time: Date.now()
+  }).then(() => {
+    // Chỉ xóa form và báo thành công khi Firebase đã lưu xong
+    kmInput.value = "";
+    giaInput.value = "";
+    dcInput.value = "";
+    closeAddSheet();
+    showToast(`✅ Đã thêm đơn! (+${tien}K)`);
+    if(navigator.vibrate) navigator.vibrate([30, 50, 30]); 
+  }).catch((error) => {
+    // Báo lỗi nếu Firebase bị chặn hoặc sai cấu hình
+    console.error("Lỗi Firebase:", error);
+    showToast("❌ Lỗi cấu hình Firebase hoặc Database Rules bị chặn!");
+    if(navigator.vibrate) navigator.vibrate([50, 50, 50]); 
   });
-
-  // clear input (Fixed bug)
-  kmInput.value = "";
-  giaInput.value = "";
-  dcInput.value = "";
-
-  closeAddSheet();
-  showToast(`✅ Đã thêm đơn! (+${tien}K)`);
-  if(navigator.vibrate) navigator.vibrate([30, 50, 30]); // Success haptic
 }
 
 // ===== LOAD REALTIME =====
@@ -375,7 +387,6 @@ function load(){
     let data = snap.val() || {};
     let html="", d=0, t=0, k=0;
 
-    // Convert to array to reverse (newest first)
     let arr = Object.values(data).filter(o => o.user === user).sort((a,b) => b.time - a.time);
 
     arr.forEach(o => {
@@ -415,7 +426,7 @@ function checkPin(e){
   if(e) createRipple(e);
   if(document.getElementById("p").value !== "2005"){
     showToast("❌ Sai mã PIN!");
-    if(navigator.vibrate) navigator.vibrate([50, 50, 50]); // Error haptic
+    if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
     document.getElementById("p").value = "";
     return;
   }
@@ -450,14 +461,13 @@ function loadManager(){
 
     for(let u in map){
       let m = map[u];
-      // Sort list
       m.list.sort((a,b) => b.time - a.time);
 
       html += `
         <div class="glass-card rounded-2xl overflow-hidden mb-3">
           <div class="p-4 flex justify-between items-center cursor-pointer" onclick="toggleMgr('${u}')">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold">${u.charAt(0)}</div>
+              <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold">${u.charAt(0).toUpperCase()}</div>
               <div>
                 <b class="text-base">${u}</b>
                 <div class="text-xs text-gray-500 mt-0.5">📦 ${m.don} | 📍 ${m.km}km</div>
