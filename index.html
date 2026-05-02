@@ -1,258 +1,503 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Delivery Pro Max</title>
 
-<title>Giao hàng Pro</title>
-
+<!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-tailwind.config = { darkMode: 'class' }
+  tailwind.config = { 
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          oled: '#000000',
+          card: '#121214',
+          primary: '#3b82f6',
+          accent: '#06b6d4'
+        },
+        animation: {
+          'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          'fade-in': 'fadeIn 0.3s ease-out forwards',
+        },
+        keyframes: {
+          slideUp: {
+            '0%': { transform: 'translateY(100%)' },
+            '100%': { transform: 'translateY(0)' },
+          },
+          fadeIn: {
+            '0%': { opacity: '0', transform: 'scale(0.95)' },
+            '100%': { opacity: '1', transform: 'scale(1)' },
+          }
+        }
+      }
+    }
+  }
 </script>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-body { font-family: -apple-system, sans-serif; }
+  /* Custom Scrollbar & Utils */
+  ::-webkit-scrollbar { width: 0px; }
+  body { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; }
+  
+  /* Glassmorphism */
+  .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.05); }
+  .dark .glass { background: rgba(18, 18, 20, 0.75); border-bottom: 1px solid rgba(255,255,255,0.05); }
+  
+  .glass-card { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 8px 32px rgba(0,0,0,0.05); }
+  .dark .glass-card { background: rgba(30, 30, 35, 0.5); border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+
+  /* Ripple Effect */
+  .ripple-btn { position: relative; overflow: hidden; }
+  .ripple { position: absolute; border-radius: 50%; transform: scale(0); animation: ripple-anim 0.6s linear; background: rgba(255,255,255,0.3); pointer-events: none; }
+  @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+  /* Input Focus */
+  input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+  
+  /* Toast */
+  #toast-container { position: fixed; top: 20px; left: 0; right: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  .toast { background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 100px; font-weight: 500; margin-bottom: 10px; backdrop-filter: blur(10px); animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-size: 14px;}
+  .dark .toast { background: rgba(255,255,255,0.9); color: black; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(-20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
 </style>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+<body class="bg-gray-50 dark:bg-oled text-gray-900 dark:text-gray-100 transition-colors duration-300">
 
-<div class="max-w-md mx-auto">
+<div id="toast-container"></div>
 
-<!-- ===== LOBBY ===== -->
-<div id="lobby" class="p-6 text-center">
+<div class="max-w-md mx-auto min-h-screen relative shadow-2xl bg-white dark:bg-card/30">
 
-<h1 class="text-2xl font-bold mb-6">🚚 Giao hàng</h1>
+  <!-- ===== LOBBY ===== -->
+  <div id="lobby" class="flex flex-col items-center justify-center min-h-screen p-6 animate-fade-in relative overflow-hidden">
+    <!-- Decor Gradient -->
+    <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-500/20 to-transparent pointer-events-none"></div>
+    
+    <div class="w-20 h-20 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center text-4xl shadow-xl shadow-blue-500/30 mb-6">📦</div>
+    <h1 class="text-3xl font-bold mb-2">Delivery Pro</h1>
+    <p class="text-gray-500 dark:text-gray-400 mb-8">Quản lý giao hàng thông minh</p>
 
-<input id="name" placeholder="Nhập tên shipper"
-class="w-full p-3 rounded border mb-3 text-base bg-white dark:bg-gray-800">
+    <div class="w-full space-y-4 z-10">
+      <input id="name" placeholder="Tên Shipper của bạn" class="w-full p-4 rounded-2xl bg-gray-100 dark:bg-gray-800/50 border border-transparent dark:border-gray-700 text-lg transition-all text-center font-medium">
+      <button onclick="start(event)" class="ripple-btn w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-4 rounded-2xl font-semibold shadow-lg shadow-blue-500/30 hover:scale-[0.98] transition-transform">
+        Bắt đầu ca làm
+      </button>
+      <button onclick="openManager(event)" class="ripple-btn w-full bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white py-4 rounded-2xl font-semibold hover:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+        <span>📊</span> Dành cho Quản lý
+      </button>
+    </div>
+  </div>
 
-<button onclick="start()" 
-class="w-full bg-blue-500 text-white py-3 rounded mb-2">
-Bắt đầu
-</button>
+  <!-- ===== APP ===== -->
+  <div id="app" class="hidden min-h-screen flex flex-col relative pb-24">
+    <!-- HEADER -->
+    <div class="glass sticky top-0 z-40 px-5 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg" id="user-avatar">S</div>
+        <div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Xin chào,</p>
+          <b id="user" class="text-lg leading-none"></b>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="toggleDark(event)" class="ripple-btn w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-lg">🌗</button>
+        <button onclick="back(event)" class="ripple-btn w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-lg text-red-500">🚪</button>
+      </div>
+    </div>
 
-<button onclick="openManager()" 
-class="w-full bg-purple-500 text-white py-3 rounded">
-📊 Quản lý
-</button>
+    <!-- DASHBOARD -->
+    <div class="p-5">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="glass-card p-4 rounded-3xl text-center">
+          <div class="text-blue-500 text-xl mb-1">📦</div>
+          <b id="d" class="text-2xl font-bold">0</b>
+          <p class="text-xs text-gray-500 font-medium mt-1">Đơn hàng</p>
+        </div>
+        <div class="glass-card p-4 rounded-3xl text-center">
+          <div class="text-green-500 text-xl mb-1">💰</div>
+          <b id="t" class="text-2xl font-bold">0K</b>
+          <p class="text-xs text-gray-500 font-medium mt-1">Thu nhập</p>
+        </div>
+        <div class="glass-card p-4 rounded-3xl text-center">
+          <div class="text-purple-500 text-xl mb-1">📍</div>
+          <b id="k" class="text-2xl font-bold">0</b>
+          <p class="text-xs text-gray-500 font-medium mt-1">Km đã chạy</p>
+        </div>
+      </div>
+    </div>
 
-</div>
+    <!-- LIST -->
+    <div class="px-5">
+      <div class="flex justify-between items-end mb-4">
+        <h2 class="text-lg font-bold">Lịch sử hôm nay</h2>
+        <span class="text-xs text-gray-500">Realtime</span>
+      </div>
+      <div id="list" class="space-y-3"></div>
+    </div>
 
-<!-- ===== APP ===== -->
-<div id="app" class="hidden">
+    <!-- FAB THÊM ĐƠN -->
+    <button onclick="openAddSheet(event)" class="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full shadow-2xl shadow-blue-500/50 flex items-center justify-center text-white text-3xl hover:scale-105 active:scale-95 transition-transform z-40 ripple-btn">
+      +
+    </button>
+  </div>
 
-<!-- HEADER -->
-<div class="p-4 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 shadow">
-<div>
-<b id="user"></b>
-</div>
+  <!-- BOTTOM SHEET FORM -->
+  <div id="addSheetOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300">
+    <div id="addSheet" class="absolute bottom-0 w-full bg-white dark:bg-[#1a1a1c] rounded-t-[32px] p-6 pb-8 transform translate-y-full transition-transform duration-400 cubic-bezier(0.16, 1, 0.3, 1)">
+      <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-6"></div>
+      <h2 class="text-xl font-bold mb-6 text-center">Tạo đơn mới</h2>
+      
+      <div class="space-y-4">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">📍</div>
+          <input id="dc" placeholder="Nhập địa chỉ giao hàng..." class="w-full pl-10 p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 border-none text-base">
+        </div>
+        
+        <div class="flex gap-4">
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">🛵</div>
+            <input id="km" type="number" placeholder="Số Km" class="w-full pl-10 p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 border-none text-base">
+          </div>
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">💵</div>
+            <input id="gia" type="number" placeholder="Giá đơn" class="w-full pl-10 p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 border-none text-base">
+          </div>
+        </div>
 
-<div class="flex gap-2">
-<button onclick="toggleDark()">🌙</button>
-<button onclick="back()">🏠</button>
-</div>
-</div>
+        <div class="flex gap-3 pt-2">
+          <button onclick="closeAddSheet(event)" class="ripple-btn flex-1 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white py-4 rounded-2xl font-bold">Hủy</button>
+          <button onclick="add(event)" class="ripple-btn flex-[2] bg-gradient-to-r from-green-500 to-emerald-400 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-500/30">Lưu đơn hàng</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<!-- DASHBOARD -->
-<div class="grid grid-cols-3 gap-2 p-3">
-<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
-<p class="text-xs">Đơn</p>
-<b id="d">0</b>
-</div>
+  <!-- ===== PIN ===== -->
+  <div id="pin" class="hidden min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
+    <div class="w-16 h-16 bg-purple-500/20 text-purple-500 rounded-2xl flex items-center justify-center text-3xl mb-4">🔐</div>
+    <h2 class="text-2xl font-bold mb-2">Mã bảo mật</h2>
+    <p class="text-gray-500 mb-8">Khu vực dành cho Quản lý</p>
 
-<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
-<p class="text-xs">Tiền</p>
-<b id="t">0</b>
-</div>
+    <input id="p" type="password" placeholder="••••" class="w-full max-w-[200px] p-4 text-center tracking-[1em] text-2xl rounded-2xl bg-gray-100 dark:bg-gray-800 border-none mb-6">
+    
+    <div class="flex gap-3 w-full">
+      <button onclick="back(event)" class="ripple-btn flex-1 bg-gray-200 dark:bg-gray-800 py-4 rounded-2xl font-bold">Trở lại</button>
+      <button onclick="checkPin(event)" class="ripple-btn flex-[2] bg-gradient-to-r from-purple-600 to-purple-400 text-white py-4 rounded-2xl font-bold shadow-lg shadow-purple-500/30">Xác nhận</button>
+    </div>
+  </div>
 
-<div class="bg-white dark:bg-gray-800 p-2 rounded text-center shadow">
-<p class="text-xs">Km</p>
-<b id="k">0</b>
-</div>
-</div>
+  <!-- ===== MANAGER ===== -->
+  <div id="manager" class="hidden min-h-screen bg-gray-50 dark:bg-oled pb-10">
+    <div class="glass sticky top-0 z-40 px-5 py-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold">Dashboard Quản lý</h1>
+      <button onclick="back(event)" class="ripple-btn w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">🚪</button>
+    </div>
+    
+    <!-- Grand Totals -->
+    <div class="p-5">
+      <div class="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-purple-500/30">
+        <p class="text-purple-200 text-sm font-medium mb-1">Tổng quan toàn đội</p>
+        <div class="flex items-end gap-2 mb-4">
+          <span class="text-4xl font-bold" id="mgr-total-tien">0K</span>
+          <span class="text-purple-200 pb-1">cước phí</span>
+        </div>
+        <div class="flex gap-4 border-t border-white/20 pt-4">
+          <div><p class="text-xs text-purple-200">Tổng đơn</p><b class="text-lg" id="mgr-total-don">0</b></div>
+          <div><p class="text-xs text-purple-200">Tổng Km</p><b class="text-lg" id="mgr-total-km">0</b></div>
+        </div>
+      </div>
+    </div>
 
-<!-- LIST -->
-<div id="list" class="p-3 space-y-2 pb-32"></div>
-
-<!-- FORM -->
-<div class="fixed bottom-0 left-0 right-0 p-3 bg-white dark:bg-gray-800 border-t">
-
-<div class="flex gap-2 mb-2">
-<input id="km" placeholder="Km" type="number"
-class="flex-1 p-2 border rounded text-base bg-white dark:bg-gray-700">
-
-<input id="gia" placeholder="Giá" type="number"
-class="flex-1 p-2 border rounded text-base bg-white dark:bg-gray-700">
-</div>
-
-<input id="dc" placeholder="Địa chỉ"
-class="w-full p-2 border rounded mb-2 text-base bg-white dark:bg-gray-700">
-
-<button onclick="add()" 
-class="w-full bg-green-500 text-white py-3 rounded">
-➕ Thêm
-</button>
-
-</div>
-
-</div>
-
-<!-- ===== PIN ===== -->
-<div id="pin" class="hidden p-6 text-center">
-
-<h2 class="mb-3 font-bold">🔐 Nhập PIN</h2>
-
-<input id="p" type="password"
-class="w-full p-3 border rounded mb-2 text-center">
-
-<button onclick="checkPin()" 
-class="bg-purple-500 text-white w-full py-3 rounded">
-Xác nhận
-</button>
-
-</div>
-
-<!-- ===== MANAGER ===== -->
-<div id="manager" class="hidden p-4"></div>
+    <div class="px-5 pb-5">
+      <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Danh sách Shipper</h2>
+      <div id="manager-list" class="space-y-3"></div>
+    </div>
+  </div>
 
 </div>
 
 <script>
+// --- Config Firebase ---
 const firebaseConfig = {
-apiKey: "AIzaSy...",
-databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app"
+  apiKey: "AIzaSy...", 
+  databaseURL: "https://giao-hang-35556-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let user="";
+let user = "";
+
+// --- Ripple Effect Logic ---
+function createRipple(event) {
+  const button = event.currentTarget;
+  const circle = document.createElement("span");
+  const diameter = Math.max(button.clientWidth, button.clientHeight);
+  const radius = diameter / 2;
+  const rect = button.getBoundingClientRect();
+  
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+
+  circle.style.width = circle.style.height = `${diameter}px`;
+  circle.style.left = `${clientX - rect.left - radius}px`;
+  circle.style.top = `${clientY - rect.top - radius}px`;
+  circle.classList.add("ripple");
+
+  const ripple = button.querySelector(".ripple");
+  if (ripple) ripple.remove();
+  button.appendChild(circle);
+}
+
+// --- Toast System ---
+function showToast(msg) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = msg;
+  container.appendChild(toast);
+  if(navigator.vibrate) navigator.vibrate(50);
+  
+  setTimeout(() => {
+    toast.style.animation = 'toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+// --- Screen Transitions ---
+function switchScreen(hideId, showId) {
+  document.getElementById(hideId).classList.add("hidden");
+  const showEl = document.getElementById(showId);
+  showEl.classList.remove("hidden");
+  showEl.classList.add("animate-fade-in");
+}
 
 // ===== START =====
-function start(){
-user = document.getElementById("name").value.trim();
-if(!user) return alert("Nhập tên");
+function start(e){
+  if(e) createRipple(e);
+  user = document.getElementById("name").value.trim();
+  if(!user) return showToast("⚠️ Vui lòng nhập tên!");
 
-document.getElementById("lobby").classList.add("hidden");
-document.getElementById("app").classList.remove("hidden");
+  switchScreen("lobby", "app");
+  document.getElementById("user").innerText = user;
+  document.getElementById("user-avatar").innerText = user.charAt(0).toUpperCase();
 
-document.getElementById("user").innerText=user;
-
-load();
+  load();
 }
 
-// ===== BACK =====
-function back(){
-location.reload();
+function back(e){
+  if(e) createRipple(e);
+  setTimeout(() => location.reload(), 200);
 }
 
-// ===== DARK =====
-function toggleDark(){
-document.documentElement.classList.toggle("dark");
+function toggleDark(e){
+  if(e) createRipple(e);
+  document.documentElement.classList.toggle("dark");
 }
 
-// ===== TÍNH =====
-function calc(km,gia){
-km=Math.round(km);
-if(gia>=300) return 0;
-if(km<=1) return 5;
-return (km-1)*5;
+// ===== BOTTOM SHEET LOGIC =====
+const overlay = document.getElementById('addSheetOverlay');
+const sheet = document.getElementById('addSheet');
+
+function openAddSheet(e) {
+  if(e) createRipple(e);
+  overlay.classList.remove('hidden');
+  // trigger reflow
+  void overlay.offsetWidth;
+  overlay.classList.remove('opacity-0');
+  sheet.classList.remove('translate-y-full');
+}
+
+function closeAddSheet(e) {
+  if(e) createRipple(e);
+  overlay.classList.add('opacity-0');
+  sheet.classList.add('translate-y-full');
+  setTimeout(() => overlay.classList.add('hidden'), 300);
+}
+
+// ===== TÍNH TIỀN =====
+function calc(km, gia){
+  km = Math.round(km);
+  if(gia >= 300) return 0;
+  if(km <= 1) return 5;
+  return (km - 1) * 5;
+}
+
+function formatTime(timestamp) {
+  const d = new Date(timestamp);
+  return d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
 }
 
 // ===== ADD =====
-function add(){
-let km=Number(kmInput.value);
-let gia=Number(giaInput.value);
-let dc=dcInput.value;
+function add(e){
+  if(e) createRipple(e);
+  
+  let kmInput = document.getElementById("km");
+  let giaInput = document.getElementById("gia");
+  let dcInput = document.getElementById("dc");
 
-db.ref("orders").push({
-user, km:Math.round(km), gia, dc,
-tien:calc(km,gia),
-time:Date.now()
-});
+  let km = Number(kmInput.value);
+  let gia = Number(giaInput.value);
+  let dc = dcInput.value.trim();
 
-kmInput.value="";
-giaInput.value="";
-dcInput.value="";
+  if(!km || !gia || !dc) return showToast("⚠️ Nhập đủ thông tin nhé!");
+
+  let tien = calc(km, gia);
+
+  db.ref("orders").push({
+    user,
+    km: Math.round(km),
+    gia,
+    dc,
+    tien: tien,
+    time: Date.now()
+  });
+
+  // clear input (Fixed bug)
+  kmInput.value = "";
+  giaInput.value = "";
+  dcInput.value = "";
+
+  closeAddSheet();
+  showToast(`✅ Đã thêm đơn! (+${tien}K)`);
+  if(navigator.vibrate) navigator.vibrate([30, 50, 30]); // Success haptic
 }
 
-// ===== LOAD =====
+// ===== LOAD REALTIME =====
 function load(){
-db.ref("orders").on("value",snap=>{
-let data=snap.val()||{};
-let html="",d=0,t=0,k=0;
+  db.ref("orders").on("value", snap=>{
+    let data = snap.val() || {};
+    let html="", d=0, t=0, k=0;
 
-for(let id in data){
-let o=data[id];
-if(o.user!=user) continue;
+    // Convert to array to reverse (newest first)
+    let arr = Object.values(data).filter(o => o.user === user).sort((a,b) => b.time - a.time);
 
-d++; t+=o.tien; k+=o.km;
+    arr.forEach(o => {
+      d++; t += o.tien; k += o.km;
+      html += `
+        <div class="glass-card p-4 rounded-2xl flex items-center justify-between mb-3 animate-slide-up">
+          <div class="flex-1 pr-3">
+            <h3 class="font-bold text-base truncate mb-1">📍 ${o.dc}</h3>
+            <div class="flex gap-3 text-sm text-gray-500 dark:text-gray-400">
+              <span class="flex items-center gap-1">🛵 ${o.km}km</span>
+              <span class="flex items-center gap-1">💵 ${o.gia}k</span>
+              <span class="flex items-center gap-1 text-xs">🕒 ${formatTime(o.time)}</span>
+            </div>
+          </div>
+          <div class="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold px-3 py-2 rounded-xl text-lg">
+            +${o.tien}K
+          </div>
+        </div>`;
+    });
 
-html+=`
-<div class="bg-white dark:bg-gray-800 p-3 rounded shadow">
-${o.km}km - ${o.gia}k - 💰${o.tien}k
-</div>`;
-}
+    if(d===0) html = `<div class="text-center p-10 text-gray-400">Chưa có đơn nào hôm nay.</div>`;
 
-list.innerHTML=html;
-dEl.innerText=d;
-tEl.innerText=t;
-kEl.innerText=k;
-});
+    document.getElementById("list").innerHTML = html;
+    document.getElementById("d").innerText = d;
+    document.getElementById("t").innerText = t + "K";
+    document.getElementById("k").innerText = k;
+  });
 }
 
 // ===== MANAGER =====
-function openManager(){
-lobby.classList.add("hidden");
-pin.classList.remove("hidden");
+function openManager(e){
+  if(e) createRipple(e);
+  switchScreen("lobby", "pin");
 }
 
-function checkPin(){
-if(p.value!="2005") return alert("Sai PIN");
-
-pin.classList.add("hidden");
-manager.classList.remove("hidden");
-
-db.ref("orders").once("value",snap=>{
-let data=snap.val()||{}, map={}, html="";
-
-for(let id in data){
-let o=data[id];
-if(!map[o.user]) map[o.user]={km:0,tien:0,don:0,list:[]};
-
-map[o.user].km+=o.km;
-map[o.user].tien+=o.tien;
-map[o.user].don++;
-map[o.user].list.push(o);
+function checkPin(e){
+  if(e) createRipple(e);
+  if(document.getElementById("p").value !== "2005"){
+    showToast("❌ Sai mã PIN!");
+    if(navigator.vibrate) navigator.vibrate([50, 50, 50]); // Error haptic
+    document.getElementById("p").value = "";
+    return;
+  }
+  
+  switchScreen("pin", "manager");
+  loadManager();
 }
 
-for(let u in map){
-let m=map[u];
+// ===== LOAD MANAGER =====
+function loadManager(){
+  db.ref("orders").on("value", snap=>{
+    let data = snap.val() || {};
+    let map = {};
+    let html="";
+    let grandTien = 0, grandDon = 0, grandKm = 0;
 
-html+=`
-<div class="bg-white dark:bg-gray-800 p-3 mb-2 rounded shadow">
-<b>${u}</b> - 📦${m.don} | 📍${m.km}km | 💰${m.tien}k
+    for(let id in data){
+      let o = data[id];
+      if(!map[o.user]) map[o.user] = {km:0, tien:0, don:0, list:[]};
 
-<button onclick="toggle('${u}')" class="float-right text-xl">⋮</button>
+      map[o.user].km += o.km;
+      map[o.user].tien += o.tien;
+      map[o.user].don++;
+      map[o.user].list.push(o);
+      
+      grandTien += o.tien; grandDon++; grandKm += o.km;
+    }
 
-<div id="${u}" class="hidden mt-2 text-sm">
-${m.list.map(i=>`<div>${i.km}km - ${i.tien}k</div>`).join("")}
-</div>
+    document.getElementById("mgr-total-tien").innerText = grandTien + "K";
+    document.getElementById("mgr-total-don").innerText = grandDon;
+    document.getElementById("mgr-total-km").innerText = grandKm;
 
-</div>`;
+    for(let u in map){
+      let m = map[u];
+      // Sort list
+      m.list.sort((a,b) => b.time - a.time);
+
+      html += `
+        <div class="glass-card rounded-2xl overflow-hidden mb-3">
+          <div class="p-4 flex justify-between items-center cursor-pointer" onclick="toggleMgr('${u}')">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold">${u.charAt(0)}</div>
+              <div>
+                <b class="text-base">${u}</b>
+                <div class="text-xs text-gray-500 mt-0.5">📦 ${m.don} | 📍 ${m.km}km</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <b class="text-green-500">${m.tien}K</b>
+              <span id="icon-${u}" class="text-gray-400 transition-transform">▼</span>
+            </div>
+          </div>
+
+          <div id="detail-${u}" class="hidden bg-gray-100 dark:bg-gray-800/50 p-4 border-t border-gray-200 dark:border-gray-700 text-sm space-y-2">
+            ${m.list.map(i=>`
+              <div class="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-700/50 last:border-0 last:pb-0">
+                <div class="flex-1 truncate pr-2">
+                  <span class="font-medium">📍 ${i.dc}</span> <span class="text-xs text-gray-400">(${formatTime(i.time)})</span><br>
+                  <span class="text-gray-500 text-xs">${i.km}km - ${i.gia}k</span>
+                </div>
+                <div class="font-bold text-blue-500">+${i.tien}K</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>`;
+    }
+
+    if(grandDon === 0) html = `<div class="text-center p-10 text-gray-400">Hệ thống chưa có đơn nào.</div>`;
+    document.getElementById("manager-list").innerHTML = html;
+  });
 }
 
-manager.innerHTML=html;
-});
-}
-
-function toggle(u){
-document.getElementById(u).classList.toggle("hidden");
+function toggleMgr(u){
+  const detail = document.getElementById(`detail-${u}`);
+  const icon = document.getElementById(`icon-${u}`);
+  if(detail.classList.contains("hidden")){
+    detail.classList.remove("hidden");
+    icon.style.transform = "rotate(180deg)";
+  } else {
+    detail.classList.add("hidden");
+    icon.style.transform = "rotate(0deg)";
+  }
 }
 </script>
 
